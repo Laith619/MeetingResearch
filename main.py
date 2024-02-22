@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from pydantic import BaseModel
 from typing import Optional
 
 from crewai import Crew
@@ -57,7 +58,8 @@ def prepare_meeting(request: MeetingRequest):
 
     result = crew.kickoff()
 
-    # Convert result to Markdown format
-    markdown_result = f"# Meeting Preparation\n\n{result}"
-
-    return markdown_result
+    # Return result as JSON
+    return {
+        "result": result,
+        "message": "Meeting prepared successfully!"
+    }
