@@ -1,12 +1,16 @@
 from fastapi import FastAPI, HTTPException, Request
 import re
 from pydantic import BaseModel
-from json.decoder import JSONDecodeError  # Make sure to import this for the exception handling
+from json.decoder import JSONDecodeError
 import logging
 
 from crewai import Crew
 from tasks import MeetingPreparationTasks
 from agents import MeetingPreparationAgents
+
+# Setup logging configuration
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("uvicorn.error")
 
 
 class MeetingRequest(BaseModel):
@@ -16,7 +20,7 @@ class MeetingRequest(BaseModel):
 
 # Initialize FastAPI app
 app = FastAPI()
-logging.basicConfig(level=logging.INFO)
+
 
 # Initialize the tasks and agents
 tasks = MeetingPreparationTasks()
@@ -24,28 +28,28 @@ agents = MeetingPreparationAgents()
 
 @app.post("/prepare_meeting/")
 async def prepare_meeting(request: Request):
-    # Ensure the request has the correct content type
-    if request.headers.get('Content-Type') != 'application/json':
+    # Log the request headers and body for debugging
+    headers = request.headers
+    logger.info(f"Request headers: {headers}")
+    
+    # Retrieve body as bytes and then log it
+    body_bytes = await request.body()
+    body_text = body_bytes.decode('utf-8')  # Decode bytes to string
+    logger.info(f"Request body: {body_text}")
+
+    # Check the Content-Type of the incoming request is 'application/json'
+    if 'application/json' not in headers.get('Content-Type', ''):
+        logger.error(f"Received Content-Type: {headers.get('Content-Type')}")
         raise HTTPException(status_code=415, detail="Unsupported Media Type. Please send JSON.")
     
-    # Try to parse the JSON body
     try:
-        body = await request.json()
-    except JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Malformed JSON or empty payload.")
-
-    # Extract the 'message' field from the body
-    message = body.get("message", "")
-
-    # Regex pattern for parsing the message
-    pattern = r"participants: ([^;]+); context: ([^;]+); objective: (.+)"
-    match = re.match(pattern, message)
-
-    if not match:
-        raise HTTPException(status_code=400, detail="Invalid message format.")
-
-    participants, context, objective = match.groups()
-    participant_emails = participants.split(',')
+        # Since we already have the body as text, parse it into JSON
+        data = request.json.loads(body_text)  # Use json.loads method from Request class
+        logger.info(f"Parsed JSON body: {data}")
+        
+        # Validate data against the Pydantic model
+        meeting_request = MeetingRequest(**data)
+        logger.info(f"Validated meeting request data: {meeting_request}")
 
     # Initialize agents and tasks (assuming you have these functions defined)
     researcher_agent = agents.research_agent()
