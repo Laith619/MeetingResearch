@@ -33,28 +33,30 @@ agents = MeetingPreparationAgents()
 
 @app.post("/prepare_meeting/")
 async def prepare_meeting(request: Request):
-    # Log the request headers for debugging
-    headers = request.headers
-    logger.info(f"Request headers: {headers}")
-    
-    # Retrieve the body as bytes and then log it
-    body_bytes = await request.body()
-    body_text = body_bytes.decode('utf-8')  # Decode bytes to string
-    logger.info(f"Request body: {body_text}")
-
-    # Check the Content-Type of the incoming request is 'application/json'
-    if 'application/json' not in headers.get('Content-Type', ''):
-        logger.error(f"Received Content-Type: {headers.get('Content-Type')}")
-        raise HTTPException(status_code=415, detail="Unsupported Media Type. Please send JSON.")
-    
     try:
-        # Parse the body text into JSON
-        data = json.loads(body_text)
-        logger.info(f"Parsed JSON body: {data}")
-        
+        # Attempt to get JSON content
+        content = await request.json()
+        message = content.get('message', '')
+
+        # Define a function to parse the message
+        def parse_message(msg: str) -> dict:
+            # The regex pattern will need to be adjusted if the format of the message changes
+            pattern = r'participants: ([^;]+); context: ([^;]+); objective: (.+)'
+            match = re.match(pattern, msg)
+            if not match:
+                raise ValueError('Message format is incorrect.')
+            return {
+                'participants': match.group(1),
+                'context': match.group(2),
+                'objective': match.group(3)
+            }
+
+        # Parse the SMS message
+        parsed_data = parse_message(message)
+
         # Validate data against the Pydantic model
-        meeting_request = MeetingRequest(**data)
-        logger.info(f"Validated meeting request data: {meeting_request}")
+        meeting_request = MeetingRequest(**parsed_data)
+        logger.info(f'Validated meeting request data: {meeting_request}')
 
         # Extract participant emails, context, and objective from the request
         participant_emails = meeting_request.participants.split(',')
@@ -95,10 +97,13 @@ async def prepare_meeting(request: Request):
             "result": result,
             "message": "Meeting prepared successfully!"
         }
-    
+
     except JSONDecodeError as e:
-        logger.error(f"JSONDecodeError: {e}")
-        raise HTTPException(status_code=400, detail="Malformed JSON or empty payload.")
+        logger.error(f'JSONDecodeError: {e}')
+        raise HTTPException(status_code=400, detail='Malformed JSON or empty payload.')
+    except ValueError as e:
+        logger.error(f'Parsing error: {e}')
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.exception("Error during the preparation of the meeting")
-        raise HTTPException(status_code=500, detail="Internal server error during meeting preparation.")
+        logger.error(f'Unexpected error: {e}')
+        raise HTTPException(status_code=500, detail='Internal server error.')
