@@ -10,13 +10,18 @@ from tools.SerperTool import search
 # Load the .env file
 load_dotenv()
 
+llm = {
+    "model_name": "gpt-3.5-turbo",
+    # Additional parameters here as required by CrewAI
+}
+
 class MeetingPreparationAgents():
 	def research_agent(self):
 		return Agent(
 			role='Research Specialist',
 			goal='Conduct thorough research on people and companies involved in the meeting',
 			tools=[search],
-			llm= "gpt-3.5-turbo",
+			llm=llm,
 			backstory=dedent("""\
 					As a Research Specialist, your mission is to uncover detailed information
 					about the individuals and entities participating in the meeting. Your insights
@@ -29,7 +34,7 @@ class MeetingPreparationAgents():
 			role='Industry Analyst',
 			goal='Analyze the current industry trends, challenges, and opportunities',
 			tools=[search],
-			llm= "gpt-3.5-turbo",
+			llm=llm,
 			backstory=dedent("""\
 					As an Industry Analyst, your analysis will identify key trends,
 					challenges facing the industry, and potential opportunities that
@@ -42,7 +47,7 @@ class MeetingPreparationAgents():
 			role='Meeting Strategy Advisor',
 			goal='Develop talking points, questions, and strategic angles for the meeting',
 			tools=[search],
-			llm= "gpt-3.5-turbo",
+			llm=llm,
 			backstory=dedent("""\
 					As a Strategy Advisor, your expertise will guide the development of
 					talking points, insightful questions, and strategic angles
@@ -55,7 +60,7 @@ class MeetingPreparationAgents():
 			role='Briefing Coordinator',
 			goal='Compile all gathered information into a concise, informative briefing document',
 			tools=[search],
-			llm= "gpt-3.5-turbo",
+			llm=llm,
 			backstory=dedent("""\
 					As the Briefing Coordinator, your role is to consolidate the research,
 					analysis, and strategic insights."""),
