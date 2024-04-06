@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
+from twilio.rest import Client
 import json
 import httpx
 import re
@@ -22,6 +23,13 @@ class MeetingRequest(BaseModel):
     participants: str  # Text containing participant emails, comma-separated
     context: str       # Text describing the meeting context
     objective: str     # Text describing the meeting objective
+
+
+# Twilio setup
+account_sid = os.getenv('TWILIO_ACCOUNT_SID')  # Set this in your environment variables
+auth_token = os.getenv('TWILIO_AUTH_TOKEN')    # Set this in your environment variables
+twilio_number = os.getenv('TWILIO_PHONE_NUMBER')  # Your Twilio phone number
+
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -82,7 +90,27 @@ async def prepare_meeting(request: Request):
         )
 
         result = crew.kickoff()
-        
+
+
+        # Send an SMS using Twilio
+        try:
+            # Initialize the Twilio client
+            client = Client(account_sid, auth_token)
+            
+            # Assuming the recipient's phone number is passed in the request or set as an environment variable
+            to_number = os.getenv('RECIPIENT_PHONE_NUMBER') # Or use a different method to retrieve this number
+            
+            # Send the SMS message
+            message = client.messages.create(
+                body="Your meeting has been prepared successfully.",
+                from_=twilio_number,
+                to=to_number
+            )
+            logger.info(f"Message sent: {message.sid}")
+
+        except Exception as e:
+            logger.error(f"Failed to send SMS: {e}")
+            response_message = "Meeting prepared, but failed to send SMS notification."
 
     except JSONDecodeError as e:
         logger.error(f'JSONDecodeError: {e}')
@@ -93,17 +121,6 @@ async def prepare_meeting(request: Request):
     except Exception as e:
         logger.error(f'Unexpected error: {e}')
         raise HTTPException(status_code=500, detail='Internal server error.')
-        return  # Make sure to return from the function after raising an exception
-
-    # Trigger an IFTTT event should be outside the except block
-    event_name = 'send_sms_with_result'
-    key = os.getenv('IFTTT_KEY')  # Make sure the IFTTT_KEY environment variable is set
-    payload = {'value1': str(result)}
-
-    response = httpx.post(f'https://maker.ifttt.com/trigger/{event_name}/with/key/{key}', json=payload)
-    if response.status_code != 200:
-        logger.error(f"Failed to trigger IFTTT event. Status Code: {response.status_code}")
-        # Handle the error as needed
-
-    # Final action of the function
-    return {'message': 'Result will be sent via SMS.'}
+    
+    # Return the final response
+    return {"message": response_message}
