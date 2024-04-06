@@ -1,13 +1,15 @@
 from fastapi import FastAPI, HTTPException, Request
 import re
 from typing import Optional
+from pydantic import BaseModel
+from pydantic import BaseModel
 
 
 from crewai import Crew
 from tasks import MeetingPreparationTasks
 from agents import MeetingPreparationAgents
 
-BaseModel = "gpt-4-turbo-preview"
+
 class MeetingRequest(BaseModel):
     participants: str  # Text containing participant emails, comma-separated
     context: str       # Text describing the meeting context
