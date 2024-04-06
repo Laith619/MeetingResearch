@@ -32,6 +32,8 @@ agents = MeetingPreparationAgents()
 @app.post("/prepare_meeting/")
 async def prepare_meeting(request: Request):
     try:
+        raw_body = await request.body()
+        logger.info(f"Raw request body: {raw_body}")
         content = await request.json()
         message = content.get('message', '')
         def parse_message(msg: str) -> dict:
