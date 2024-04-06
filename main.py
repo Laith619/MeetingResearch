@@ -81,21 +81,7 @@ async def prepare_meeting(request: Request):
         )
 
         result = crew.kickoff()
-
-        # Prepare the payload to send to IFTTT
-        event_name = 'send_sms_with_result'
-        key = 'your_ifttt_key'  # Replace with your IFTTT key or use an environment variable
-        payload = {'value1': str(result)}  # Make sure result is serializable as a string
-
-        # Trigger an IFTTT event
-        response = httpx.post(f'https://maker.ifttt.com/trigger/{event_name}/with/key/{key}', json=payload)
-        if response.status_code != 200:
-            logger.error(f"Failed to trigger IFTTT event. Status Code: {response.status_code}")
-            # Optionally handle the error, maybe return a different message
-            return {'message': 'Meeting prepared, but failed to send result via SMS.'}
-
-        # Success
-        return {'message': 'Result will be sent via SMS.'}
+        
 
     except JSONDecodeError as e:
         logger.error(f'JSONDecodeError: {e}')
@@ -106,3 +92,17 @@ async def prepare_meeting(request: Request):
     except Exception as e:
         logger.error(f'Unexpected error: {e}')
         raise HTTPException(status_code=500, detail='Internal server error.')
+        return  # Make sure to return from the function after raising an exception
+
+    # Trigger an IFTTT event should be outside the except block
+    event_name = 'send_sms_with_result'
+    key = os.getenv('IFTTT_KEY')  # Make sure the IFTTT_KEY environment variable is set
+    payload = {'value1': str(result)}
+
+    response = httpx.post(f'https://maker.ifttt.com/trigger/{event_name}/with/key/{key}', json=payload)
+    if response.status_code != 200:
+        logger.error(f"Failed to trigger IFTTT event. Status Code: {response.status_code}")
+        # Handle the error as needed
+
+    # Final action of the function
+    return {'message': 'Result will be sent via SMS.'}
