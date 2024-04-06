@@ -10,10 +10,7 @@ from tools.SerperTool import search
 # Load the .env file
 load_dotenv()
 
-llm = {
-    "model_name": "gpt-3.5-turbo",
-    # Additional parameters here as required by CrewAI
-}
+llm = ChatOpenAI(model='gpt-4-turbo-preview') # Loading GPT-3.5
 
 class MeetingPreparationAgents():
 	def research_agent(self):
