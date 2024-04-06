@@ -1,6 +1,7 @@
 from textwrap import dedent
 from crewai import Agent
 from dotenv import load_dotenv
+from langchain.chat_models import ChatOpenAI
 
 
 
