@@ -2,12 +2,12 @@ from fastapi import FastAPI, HTTPException, Request
 import re
 from typing import Optional
 
-# Assuming 'crewai', 'tasks', and 'agents' are your custom modules.
+
 from crewai import Crew
 from tasks import MeetingPreparationTasks
 from agents import MeetingPreparationAgents
 
-# Define a simplified request model
+BaseModel = "gpt-4-turbo-preview"
 class MeetingRequest(BaseModel):
     participants: str  # Text containing participant emails, comma-separated
     context: str       # Text describing the meeting context
