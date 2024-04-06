@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-from twilio.rest import Client
 import json
 import httpx
 import re
@@ -25,10 +24,8 @@ class MeetingRequest(BaseModel):
     objective: str     # Text describing the meeting objective
 
 
-# Twilio setup
-account_sid = os.getenv('TWILIO_ACCOUNT_SID')  # Set this in your environment variables
-auth_token = os.getenv('TWILIO_AUTH_TOKEN')    # Set this in your environment variables
-twilio_number = os.getenv('TWILIO_PHONE_NUMBER')  # Your Twilio phone number
+DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL')
+
 
 
 # Initialize FastAPI app
@@ -88,9 +85,26 @@ async def prepare_meeting(request: Request):
                 summary_and_briefing
             ]
         )
-        
+
         result = crew.kickoff()
         logger.info(f"Meeting preparation result: {result}")
+
+        # Send a message to the Discord webhook within the same try block
+        try:
+            discord_message = {
+                "content": f"Meeting preparation result: {result}"  # Your message content here
+            }
+            response = httpx.post(DISCORD_WEBHOOK_URL, json=discord_message)
+            if response.status_code == 200:
+                return {"message": "Meeting prepared, and notification sent to Discord."}
+            else:
+                logger.error(f"Failed to send message to Discord, status code: {response.status_code}")
+                return {"message": "Meeting prepared, but failed to send notification to Discord."}
+        except httpx.HTTPError as http_exc:
+            logger.error(f"HTTP error occurred: {http_exc}")
+        except Exception as exc:
+            logger.error(f"An error occurred: {exc}")
+
 
     except JSONDecodeError as e:
         logger.error(f'JSONDecodeError: {e}')
@@ -102,26 +116,3 @@ async def prepare_meeting(request: Request):
         logger.error(f'Unexpected error: {e}')
         raise HTTPException(status_code=500, detail='Internal server error.')
     
-    try:
-        # Send an SMS using Twilio
-        client = Client(account_sid, auth_token)
-        to_number = os.getenv('RECIPIENT_PHONE_NUMBER')  # Ensure this variable is set in your environment
-        if not to_number:
-            logger.error("Recipient phone number not provided")
-            raise HTTPException(status_code=500, detail="Recipient phone number not provided")
-
-        
-        logger.info(f"Sending SMS to: {to_number}")
-        
-        message = client.messages.create(
-            body="Your meeting has been prepared successfully.",
-            from_=twilio_number,
-            to=to_number
-        )
-        
-        logger.info(f"Message sent: {message.sid}")
-        return {"message": "Meeting prepared, and SMS notification is sent."}
-
-    except Exception as e:
-        logger.error(f"Failed to send SMS: {e}")
-        raise HTTPException(status_code=500, detail="Failed to send SMS notification.")
