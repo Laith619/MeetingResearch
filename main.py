@@ -4,6 +4,8 @@ import json
 import re
 import logging
 from json.decoder import JSONDecodeError
+from typing import Optional
+
 
 from crewai import Crew
 from tasks import MeetingPreparationTasks
