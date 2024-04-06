@@ -88,29 +88,9 @@ async def prepare_meeting(request: Request):
                 summary_and_briefing
             ]
         )
-
+        
         result = crew.kickoff()
-
-
-        # Send an SMS using Twilio
-        try:
-            # Initialize the Twilio client
-            client = Client(account_sid, auth_token)
-            
-            # Assuming the recipient's phone number is passed in the request or set as an environment variable
-            to_number = os.getenv('RECIPIENT_PHONE_NUMBER') # Or use a different method to retrieve this number
-            
-            # Send the SMS message
-            message = client.messages.create(
-                body="Your meeting has been prepared successfully.",
-                from_=twilio_number,
-                to=to_number
-            )
-            logger.info(f"Message sent: {message.sid}")
-
-        except Exception as e:
-            logger.error(f"Failed to send SMS: {e}")
-            response_message = "Meeting prepared, but failed to send SMS notification."
+        logger.info(f"Meeting preparation result: {result}")
 
     except JSONDecodeError as e:
         logger.error(f'JSONDecodeError: {e}')
@@ -122,5 +102,26 @@ async def prepare_meeting(request: Request):
         logger.error(f'Unexpected error: {e}')
         raise HTTPException(status_code=500, detail='Internal server error.')
     
-    # Return the final response
-    return {"message": response_message}
+    try:
+        # Send an SMS using Twilio
+        client = Client(account_sid, auth_token)
+        to_number = os.getenv('RECIPIENT_PHONE_NUMBER')  # Ensure this variable is set in your environment
+        if not to_number:
+            logger.error("Recipient phone number not provided")
+            raise HTTPException(status_code=500, detail="Recipient phone number not provided")
+
+        
+        logger.info(f"Sending SMS to: {to_number}")
+        
+        message = client.messages.create(
+            body="Your meeting has been prepared successfully.",
+            from_=twilio_number,
+            to=to_number
+        )
+        
+        logger.info(f"Message sent: {message.sid}")
+        return {"message": "Meeting prepared, and SMS notification is sent."}
+
+    except Exception as e:
+        logger.error(f"Failed to send SMS: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send SMS notification.")
