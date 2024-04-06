@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import json
+import httpx
 import re
 import logging
 from json.decoder import JSONDecodeError
@@ -78,12 +79,23 @@ async def prepare_meeting(request: Request):
                 summary_and_briefing
             ]
         )
+
         result = crew.kickoff()
 
-        return {
-            "result": result,
-            "message": "Meeting prepared successfully!"
-        }
+        # Prepare the payload to send to IFTTT
+        event_name = 'send_sms_with_result'
+        key = 'your_ifttt_key'  # Replace with your IFTTT key or use an environment variable
+        payload = {'value1': str(result)}  # Make sure result is serializable as a string
+
+        # Trigger an IFTTT event
+        response = httpx.post(f'https://maker.ifttt.com/trigger/{event_name}/with/key/{key}', json=payload)
+        if response.status_code != 200:
+            logger.error(f"Failed to trigger IFTTT event. Status Code: {response.status_code}")
+            # Optionally handle the error, maybe return a different message
+            return {'message': 'Meeting prepared, but failed to send result via SMS.'}
+
+        # Success
+        return {'message': 'Result will be sent via SMS.'}
 
     except JSONDecodeError as e:
         logger.error(f'JSONDecodeError: {e}')
