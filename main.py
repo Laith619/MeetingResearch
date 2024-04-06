@@ -1,9 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 import re
-from typing import Optional
 from pydantic import BaseModel
-from pydantic import BaseModel
-
+from json.decoder import JSONDecodeError  # Make sure to import this for the exception handling
 
 from crewai import Crew
 from tasks import MeetingPreparationTasks
@@ -17,6 +15,7 @@ class MeetingRequest(BaseModel):
 
 # Initialize FastAPI app
 app = FastAPI()
+logging.basicConfig(level=logging.INFO)
 
 # Initialize the tasks and agents
 tasks = MeetingPreparationTasks()
@@ -24,22 +23,27 @@ agents = MeetingPreparationAgents()
 
 @app.post("/prepare_meeting/")
 async def prepare_meeting(request: Request):
-    # Get the raw text body from the request
-    body = await request.json()
+    # Ensure the request has the correct content type
+    if request.headers.get('Content-Type') != 'application/json':
+        raise HTTPException(status_code=415, detail="Unsupported Media Type. Please send JSON.")
+    
+    # Try to parse the JSON body
+    try:
+        body = await request.json()
+    except JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Malformed JSON or empty payload.")
+
+    # Extract the 'message' field from the body
     message = body.get("message", "")
 
-    # Define the regex pattern for parsing the SMS text
+    # Regex pattern for parsing the message
     pattern = r"participants: ([^;]+); context: ([^;]+); objective: (.+)"
     match = re.match(pattern, message)
 
-    # If the pattern doesn't match, return an error
     if not match:
         raise HTTPException(status_code=400, detail="Invalid message format.")
 
-    # Extract matched groups into variables
     participants, context, objective = match.groups()
-
-    # Split participants by comma to create a list
     participant_emails = participants.split(',')
 
     # Initialize agents and tasks (assuming you have these functions defined)
