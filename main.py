@@ -4,6 +4,7 @@ import json
 import httpx
 import re
 import logging
+import os
 from json.decoder import JSONDecodeError
 from typing import Optional
 
