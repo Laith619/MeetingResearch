@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Request
 import re
 from pydantic import BaseModel
 from json.decoder import JSONDecodeError  # Make sure to import this for the exception handling
+import logging
 
 from crewai import Crew
 from tasks import MeetingPreparationTasks
