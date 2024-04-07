@@ -92,10 +92,11 @@ async def prepare_meeting(request: Request):
         crew = Crew(agents=[researcher_agent, industry_analyst_agent, meeting_strategy_agent, summary_and_briefing_agent], 
                     tasks=[research, industry_analysis, meeting_strategy, summary_and_briefing])
         
+
         result = crew.kickoff()
         logger.info(f"Meeting preparation result: {result}")
 
-        # Construct an embed message
+        # Construct an embed message for Discord
         discord_embed = {
             "embeds": [{
                 "title": "Meeting Preparation Result",
@@ -105,18 +106,23 @@ async def prepare_meeting(request: Request):
         }
 
         # Send the embed message to Discord webhook
-        response = httpx.post(DISCORD_WEBHOOK_URL, json=discord_embed)
+        discord_response = httpx.post(DISCORD_WEBHOOK_URL, json=discord_embed)
+        discord_message = "Notification sent to Discord."
+        if discord_response.status_code != 204:
+            logger.error(f"Failed to send message to Discord, status code: {discord_response.status_code}, response: {discord_response.text}")
+            discord_message = "Failed to send notification to Discord."
 
-        if response.status_code == 204:
-            return {"message": "Meeting prepared, and notification sent to Discord."}
-        else:
-            logger.error(f"Failed to send message to Discord, status code: {response.status_code}, response: {response.text}")
-            return {"message": "Meeting prepared, but failed to send notification to Discord."}
+        # Send result to albato.com webhook
+        albato_webhook_url = 'https://h.albato.com/wh/38/1lfj6jg/w6A5fbJU9tCl6qN6KJXmFxCjeaAxYTYlybzCqhhq3hc/'  
+        albato_response = httpx.post(albato_webhook_url, json={'result': result})
+        albato_message = "Data sent to Albato webhook successfully."
+        if albato_response.status_code != 200:
+            logger.error(f"Failed to send data to Albato webhook, status code: {albato_response.status_code}, response: {albato_response.text}")
+            albato_message = "Failed to send data to Albato webhook."
 
-    
-    except KeyError as e:
-        logger.error(f'Missing key in request: {e}')
-        raise HTTPException(status_code=400, detail=f'Missing key in request: {e}')
+        # Return a combined message indicating the results of both webhook requests
+        return {"message": f"{discord_message} {albato_message}"}
+
     except JSONDecodeError as e:
         logger.error(f'JSONDecodeError: {e}')
         raise HTTPException(status_code=400, detail='Malformed JSON or empty payload.')
