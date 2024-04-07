@@ -35,20 +35,44 @@ async def prepare_meeting(request: Request):
         raw_body = await request.body()
         logger.info(f"Raw request body: {raw_body}")
         content = await request.json()
-        message = content.get('message', '')
-        def parse_message(msg: str) -> dict:
-            pattern = r'participants: ([^;]+); context: ([^;]+); objective: (.+)'
-            match = re.match(pattern, msg)
-            if not match:
-                raise ValueError('Message format is incorrect.')
-            return {
-                'participants': match.group(1),
-                'context': match.group(2),
-                'objective': match.group(3)
-            }
 
-        parsed_data = parse_message(message)
-        meeting_request = MeetingRequest(**parsed_data)
+        # Initialize variables for participants, context, and objective
+        participants = context = objective = None
+
+        # Check if 'message' is a list (new format) and handle accordingly
+        if isinstance(content.get('message'), list):
+            # Extract data from the first item in the list
+            message_data = content['message'][0]
+            participants = message_data.get('participants')
+            context = message_data.get('context')
+            objective = message_data.get('objective')
+        elif isinstance(content.get('message'), str):
+            # Existing code for handling string message (old format)
+            message = content.get('message', '')
+            def parse_message(msg: str) -> dict:
+                pattern = r'participants: ([^;]+); context: ([^;]+); objective: (.+)'
+                match = re.match(pattern, msg)
+                if not match:
+                    raise ValueError('Message format is incorrect.')
+                return {
+                    'participants': match.group(1),
+                    'context': match.group(2),
+                    'objective': match.group(3)
+                }
+            parsed_data = parse_message(message)
+            participants = parsed_data['participants']
+            context = parsed_data['context']
+            objective = parsed_data['objective']
+
+        # Validate the extracted data
+        if not all([participants, context, objective]):
+            raise ValueError('One or more required fields are missing.')
+
+        meeting_request = MeetingRequest(
+            participants=participants,
+            context=context,
+            objective=objective
+        )
         logger.info(f'Validated meeting request data: {meeting_request}')
 
         participant_emails = meeting_request.participants.split(',')
@@ -90,6 +114,9 @@ async def prepare_meeting(request: Request):
             return {"message": "Meeting prepared, but failed to send notification to Discord."}
 
     
+    except KeyError as e:
+        logger.error(f'Missing key in request: {e}')
+        raise HTTPException(status_code=400, detail=f'Missing key in request: {e}')
     except JSONDecodeError as e:
         logger.error(f'JSONDecodeError: {e}')
         raise HTTPException(status_code=400, detail='Malformed JSON or empty payload.')
