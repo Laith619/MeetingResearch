@@ -71,15 +71,24 @@ async def prepare_meeting(request: Request):
         result = crew.kickoff()
         logger.info(f"Meeting preparation result: {result}")
 
-        # Send a message to the Discord webhook within the same try block
-        discord_message = {"content": f"Meeting preparation result: {result}"}
-        response = httpx.post(DISCORD_WEBHOOK_URL, json=discord_message)
+        # Construct an embed message
+        discord_embed = {
+            "embeds": [{
+                "title": "Meeting Preparation Result",
+                "description": f"**Participants:** {meeting_request.participants}\n**Context:** {meeting_request.context}\n**Objective:** {meeting_request.objective}\n**Result:** {result}",
+                "color": 0x00ff00  # Green color
+            }]
+        }
+
+        # Send the embed message to Discord webhook
+        response = httpx.post(DISCORD_WEBHOOK_URL, json=discord_embed)
 
         if response.status_code == 204:
             return {"message": "Meeting prepared, and notification sent to Discord."}
         else:
             logger.error(f"Failed to send message to Discord, status code: {response.status_code}, response: {response.text}")
             return {"message": "Meeting prepared, but failed to send notification to Discord."}
+
     
     except JSONDecodeError as e:
         logger.error(f'JSONDecodeError: {e}')
